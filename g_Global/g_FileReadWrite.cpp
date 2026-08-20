@@ -223,6 +223,47 @@ myOpt.endGroup();
 modified = false;
 }
 //WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+bool MainWindow::saveGlobalFile(const QString &fileName)
+{
+    FILE *f10=mfopen(fileName,"wt");
+    if(!f10) return false;
+    fclose(f10);
+
+    QSettings myOpt(fileName,QSettings::IniFormat);
+
+    myOpt.beginGroup("Projectile");
+        myOpt.setValue("A",  gAF);
+        myOpt.setValue("Z",  gZF);
+        myOpt.setValue("Energy",   gEN0);
+        myOpt.setValue("Qe",  gQIN);
+    myOpt.endGroup();
+
+    myOpt.beginGroup("Target");
+        myOpt.setValue("A",  gAT);
+        myOpt.setValue("Z",  gZT);
+        myOpt.setValue("Thick",  gDTARGET);
+    myOpt.endGroup();
+
+    myOpt.beginGroup("Options");
+        myOpt.setValue("Frequency", I_WR);
+        myOpt.setValue("Option",    iOption);
+        myOpt.setValue("Output",    iCSoutput);
+        myOpt.setValue("Loop",      iLoop);
+        myOpt.setValue("N_Steps",   N_Steps);
+        myOpt.setValue("Qshow",     Qshow);
+    myOpt.endGroup();
+
+    myOpt.beginGroup("Steps");
+        myOpt.setValue("E",    DELE);
+        myOpt.setValue("T",    DELDT);
+        myOpt.setValue("ZF",   DELZF);
+        myOpt.setValue("Q",    DELQ);
+        myOpt.setValue("ZT",   DELZT);
+    myOpt.endGroup();
+
+    return true;
+}
+//WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 void MainWindow::on_actionSave_As_triggered()
 {
     QString sfile = QFileDialog::getSaveFileName(this,  "Save",   FFileName,

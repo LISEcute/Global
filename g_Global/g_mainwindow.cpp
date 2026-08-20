@@ -14,6 +14,12 @@
 #include <QPrintPreviewDialog>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QDir>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QLocale>
+#include <QRegularExpression>
+#include <QVector>
 
 
 #include "L_Init/Constant.h"
@@ -39,7 +45,8 @@ int runGlobal(char *filename, bool option_read_data_file, const char *Globalvers
                double gAF, double gZF, double gAT, double gZT,
                double gDTARGET, double gEN0, int gQIN, int I_WR, int iOption,
               int iCSoutput, int iLoop, int N_Steps, int Qshow,
-              int DELZF, double DELE, int DELQ, int DELZT, double DELDT);
+              int DELZF, double DELE, int DELQ, int DELZT, double DELDT,
+              double *ObmenOut = nullptr);
 
 double D1;
 
@@ -47,6 +54,46 @@ extern QString LISErootPATH;
 extern QString localPATH;
 extern const char *FileNameAbsent;
 extern QString FileArg;
+
+class batchReactionSet
+{
+public:
+    bool initFromString(const QString& line);
+
+    int Ab = 0;
+    int Zb = 0;
+    int Qb = 0;
+    double Eb = 0.0;
+    int At = 0;
+    int Zt = 0;
+    double thick = 0.0;
+    double density = 0.0;
+};
+
+bool batchReactionSet::initFromString(const QString& line)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    QStringList parts = line.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
+#else
+    QStringList parts = line.split(QRegularExpression("[,\\s]+"), QString::SkipEmptyParts);
+#endif
+
+    if(parts.size() < 8) return false;
+
+    bool ok = true;
+    int i = 0;
+
+    Ab      = parts[i++].toInt(&ok);     if(!ok || Ab      <= 0) return false;
+    Zb      = parts[i++].toInt(&ok);     if(!ok || Zb      <= 0) return false;
+    Qb      = parts[i++].toInt(&ok);     if(!ok || Qb      <= 0) return false;
+    Eb      = parts[i++].toDouble(&ok);  if(!ok || Eb      <= 0.0) return false;
+    At      = parts[i++].toInt(&ok);     if(!ok || At      <= 0) return false;
+    Zt      = parts[i++].toInt(&ok);     if(!ok || Zt      <= 0) return false;
+    thick   = parts[i++].toDouble(&ok);  if(!ok || thick   <= 0.0) return false;
+    density = parts[i++].toDouble(&ok);  if(!ok || density <= 0.0) return false;
+
+    return true;
+}
 
 //WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 MainWindow::MainWindow(QWidget *parent) :
@@ -348,6 +395,186 @@ ui->textEdit->setText(content);
 ui->textEdit->setReadOnly(true);
 }
 //WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+void MainWindow::on_actionBatch_mode_triggered()
+{
+    QString openFrom = BatchFileName.isEmpty() ? localPATH : BatchFileName;
+    QString fileName = QFileDialog::getOpenFileName(
+                this,
+                tr("Open GLOBAL batch file"),
+                openFrom,
+                tr("GLOBAL batch files (*.bglobal *.betacha);;All files (*.*)"));
+
+    if(fileName.isEmpty()) return;
+
+    BatchFileName = fileName;
+    runBatchFile(fileName);
+}
+//WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+bool MainWindow::runBatchFile(const QString &fileName)
+{
+    QFile file(fileName);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("File error"),
+                             tr("Cannot open batch file:\n%1").arg(fileName));
+        return false;
+    }
+
+    QVector<batchReactionSet> reactions;
+    QTextStream in(&file);
+    int lineCount = 0;
+    int commentCount = 0;
+    while(!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        lineCount++;
+
+        if(line.isEmpty() || line.startsWith('!') || line.startsWith(';')) {
+            commentCount++;
+            continue;
+        }
+
+        batchReactionSet r;
+        if(r.initFromString(line)) reactions.append(r);
+    }
+    file.close();
+
+    if(reactions.isEmpty()) {
+        QMessageBox::information(this, tr("No data"),
+                                 tr("No valid data lines were found in:\n%1").arg(fileName));
+        return false;
+    }
+
+    QFileInfo batchInfo(fileName);
+    QDir batchDir = batchInfo.absoluteDir();
+    QString resultPath = batchDir.filePath(batchInfo.completeBaseName() + "_results.bglobal");
+
+    QFile outFile(resultPath);
+    if(!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, tr("File error"),
+                             tr("Cannot open results file for writing:\n%1").arg(resultPath));
+        return false;
+    }
+
+    QTextStream ts(&outFile);
+    ts.setLocale(QLocale::C);
+    ts.setRealNumberNotation(QTextStream::FixedNotation);
+    ts.setRealNumberPrecision(6);
+
+    ts << "Ab,Zb,Qb,Eb,At,Zt,thick,density,"
+       << "Result,Qmean,dQ,EqThick,EnergyOut,";
+    for(int q = 0; q < IMAX; ++q) ts << "Fq" << q << ',';
+    ts << "globalFile,outputFile\n";
+
+    QString oldFFileName = FFileName;
+    QString oldFileNameOut = fileNameOut;
+    bool oldModified = modified;
+    double oldAF = gAF;
+    double oldZF = gZF;
+    double oldAT = gAT;
+    double oldZT = gZT;
+    double oldDTARGET = gDTARGET;
+    double oldEN0 = gEN0;
+    int oldQIN = gQIN;
+    int oldLoop = iLoop;
+
+    ui->label_ready->setText("<h3 style=\"color: #f00;\">Batch mode...</h3>");
+    ui->menuBar->setEnabled(false);
+    QCoreApplication::processEvents();
+
+    int completedSets = 0;
+    for(int i = 0; i < reactions.size(); ++i) {
+        const batchReactionSet &r = reactions[i];
+
+        gAF = r.Ab;
+        gZF = r.Zb;
+        gQIN = r.Qb;
+        gEN0 = r.Eb;
+        gAT = r.At;
+        gZT = r.Zt;
+        gDTARGET = r.thick;
+
+        setPage(true);
+
+        QString beamEl = ui->proj_element->text();
+        beamEl.remove(' ');
+        QString targEl = ui->targ_element->text();
+        targEl.remove(' ');
+
+        QString rowBase = QString::asprintf(
+                    "%d%s%d_e%.1f_%d%s_t%.1f",
+                    r.Ab, beamEl.toUtf8().constData(), r.Qb, r.Eb,
+                    r.At, targEl.toUtf8().constData(), r.thick);
+
+        QString globalFile = batchDir.filePath(rowBase + ".global");
+        QString outputFile = batchDir.filePath(rowBase + ".gloutput");
+
+        if(!saveGlobalFile(globalFile)) {
+            QMessageBox::warning(this, tr("File error"),
+                                 tr("Cannot write generated GLOBAL file:\n%1").arg(globalFile));
+            continue;
+        }
+
+        char tGlobal_version[20];
+        strcpy(tGlobal_version, Global_version);
+        QByteArray FNO = outputFile.toLocal8Bit();
+        double Obmen[IMAX+4];
+        for(int j = 0; j < IMAX+4; ++j) Obmen[j] = 0.0;
+
+        int batchResult = runGlobal(FNO.data(), false, tGlobal_version,
+                                    gAF, gZF, gAT, gZT,
+                                    gDTARGET, gEN0, gQIN,
+                                    I_WR, iOption, iCSoutput,
+                                    0, N_Steps, Qshow,
+                                    DELZF, DELE,
+                                    DELQ, DELZT, DELDT,
+                                    Obmen);
+
+        ts << r.Ab << ',' << r.Zb << ',' << r.Qb << ',' << r.Eb << ','
+           << r.At << ',' << r.Zt << ',' << r.thick << ',' << r.density << ','
+           << batchResult << ',' << Obmen[IMAX] << ',' << Obmen[IMAX+1] << ','
+           << Obmen[IMAX+2] << ',' << Obmen[IMAX+3] << ',';
+        for(int q = 0; q < IMAX; ++q) ts << Obmen[q] << ',';
+        ts << globalFile << ',' << outputFile << '\n';
+
+        completedSets++;
+        ui->label_ready->setText(tr("<h3 style=\"color: #f00;\">Batch %1/%2...</h3>")
+                                 .arg(i + 1).arg(reactions.size()));
+        QCoreApplication::processEvents();
+    }
+
+    outFile.close();
+    ui->menuBar->setEnabled(true);
+    FFileName = oldFFileName;
+    fileNameOut = oldFileNameOut;
+    gAF = oldAF;
+    gZF = oldZF;
+    gAT = oldAT;
+    gZT = oldZT;
+    gDTARGET = oldDTARGET;
+    gEN0 = oldEN0;
+    gQIN = oldQIN;
+    iLoop = oldLoop;
+    modified = oldModified;
+    setPage(true);
+    ui->label_ready->setText("<h3 style=\"color: #00f;\">Ready</h3>");
+
+    QMessageBox::information(this, tr("Batch completed"),
+                             tr("Completed %1 calculations from %2 lines (%3 comments/empty).\nResults saved to:\n%4")
+                             .arg(completedSets)
+                             .arg(lineCount)
+                             .arg(commentCount)
+                             .arg(QDir::toNativeSeparators(resultPath)));
+
+    QFile resFile(resultPath);
+    if(resFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream stream(&resFile);
+        ui->textEdit->setText(stream.readAll());
+        ui->textEdit->setReadOnly(true);
+        resFile.close();
+    }
+
+    return true;
+}
+//WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 void MainWindow::on_proj_Z_textEdited(const QString &arg1)
 {
     if(!ZPedit_permit) return;
@@ -619,7 +846,8 @@ if(e->key()==Qt::Key_Enter || e->key()==Qt::Key_Return){
                 double gAF, double gZF, double gAT, double gZT,
                 double gDTARGET, double gEN0, int gQIN, int I_WR, int iOption,
                int iCSoutput, int iLoop, int N_Steps, int Qshow,
-               int DELZF, double DELE, int DELQ, int DELZT, double DELDT)
+               int DELZF, double DELE, int DELQ, int DELZT, double DELDT,
+               double *ObmenOut)
  {
      double Obmen[IMAX+4];    //Qmean, dQ, EquilibThick, Eout
      int result = RunGlobalLocal(Obmen,filename, option_read_data_file,
@@ -630,6 +858,8 @@ if(e->key()==Qt::Key_Enter || e->key()==Qt::Key_Return){
                              iLoop, N_Steps, Qshow,
                              DELZF, DELE,
                              DELQ,  DELZT, DELDT);
+     if(ObmenOut)
+       for(int i=0; i<IMAX+4; i++) ObmenOut[i] = Obmen[i];
      return result;
  }
 //WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW

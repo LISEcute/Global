@@ -28,6 +28,7 @@ private:
 
     QString FFileName;
     QString fileNameOut;
+    QString BatchFileName;
 
     char CZ[20];
     double gAF;
@@ -62,6 +63,8 @@ private:
     int checkFileSave();
     void frequencyChanged();
     void readFile(QString file);
+    bool runBatchFile(const QString &fileName);
+    bool saveGlobalFile(const QString &fileName);
 
 
 protected:
@@ -94,6 +97,7 @@ private slots:
     void on_actionOpen_triggered();
     void on_actionSave_triggered();
     void on_actionSave_As_triggered();
+    void on_actionBatch_mode_triggered();
 
     void on_actionPrint_Preview_triggered();
     void printPreview(QPrinter*);

@@ -1,5 +1,5 @@
-#define Global_version "Version 4.6.22"
-#define Global_date    "06-Nov-2023"
+#define Global_version "Version 4.6.23"
+#define Global_date    "20-AUG-2026"
 
 // 3.10 Michelle
 // 3.11 library
@@ -43,3 +43,6 @@
 // 4.6.20  05/15/23  increase of DELT for thick targets
 // 4.6.21  07/01/23  moving to polynom
 // 4.6.22  11/06/23  bug correction with sign of a3 in FCORR
+
+// 4.6.23  08/20/26  Modificationof project file to avoid McAffee complain on MinGW,
+// and use local path for DESTDIR

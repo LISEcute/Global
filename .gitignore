@@ -2,4 +2,13 @@
 *.exe
 *.user
 *.user*
-* /build/
+build/
+build-*/
+*.pdb
+*.a
+*.lib
+*.lnk
+*.autosave
+doc/**/__pycache__/
+doc/render*/
+*.bat

@@ -12,27 +12,27 @@ MOC_DIR = moc
 RCC_DIR = rcc
 OBJECTS_DIR = obj
 
-#win32-g++ {
-#DESTDIR = c:/LISEcute/_install
-#}
-#win32-msvc {
-#DESTDIR = c:/LISEcute/_install_MSVC
-#}
-
-win32:VERSION = 4.6.22.1 # major.minor.patch.build
-else:VERSION  = 4.6.22    # major.minor.patch
+win32-g++ {
+DESTDIR = $$PWD/_install
+QMAKE_LFLAGS_RELEASE -= -Wl,-s
+}
+win32-msvc {
+DESTDIR = $$PWD/_install_MSVC
+}
 
 win32 {
-       QMAKE_TARGET_COPYRIGHT = "LISE group at FRIB/MSU"
-	QMAKE_TARGET_COMPANY   = "LISE group at FRIB/MSU"
-	}
+    VERSION = 4.6.23.1 # major.minor.patch.build
+} else {
+    VERSION = 4.6.23   # major.minor.patch
+}
 
+win32 {
+    QMAKE_TARGET_DESCRIPTION = "GLOBAL charge-state calculator"
+    QMAKE_TARGET_PRODUCT = "GLOBAL"
+    QMAKE_TARGET_COPYRIGHT = "LISE group at FRIB/MSU"
+    QMAKE_TARGET_COMPANY = "LISE group at FRIB/MSU"
+}
 
-#OBJECTS_DIR= $$PWD/build/objects
-#UI_DIR = $$PWD/build/ui
-#MOC_DIR = $$PWD/build/moc
-#RCC_DIR = $$PWD/build/rcc
-#DESTDIR = $$PWD/build/$$build_subdir
 
 # The following define makes your compiler warn you if you use any
 # feature of Qt which has been marked as deprecated (the exact warnings
@@ -50,14 +50,13 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 HEADERS += g_Global/g_about.h \
            g_Global/g_constant.h \
 	    g_Global/g_ftype.h \
-#	    g_Global/g_local_constant.h \
            g_Global/g_mainwindow.h \
 	    L_Atima/global/gl_data_cst.h \
 	    L_Atima/global/glo_targetData.h \
 	    L_Atima/global/globallib.h \
 	    L_Atima/global/ion_potential.h \
 	    L_Atima/global/string_utils.h \
-       w_Stuff/w_Label_clickable.h
+           w_Stuff/w_Label_clickable.h
 
 
 FORMS += g_Global/g_about.ui \
