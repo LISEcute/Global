@@ -12,3 +12,4 @@ build-*/
 doc/**/__pycache__/
 doc/render*/
 *.bat
+*.py 
