@@ -176,7 +176,7 @@ int RunGlobalLocal(double *Obmen, char *filename, bool option_read_data_file,
   double TX, TXA[6];  // it is ok
   long unsigned  int LLOW[6], LHIGH[6], LINV[6];
   double X[31], DX[31], SA[29], FA[29];   //it is ok X[0:30], DX[0:30], SA[0:28], FA[0:28]
-  double coef_TXA[6]={1,10,100,1000,10000,100000};
+  double coef_TXA[6]={1,1,10,100,1000,10000};
   char CPRO[10];
   char CTAR[10];
 
@@ -652,7 +652,7 @@ L140:
               goto L9000;
             }
 
-          EDIFF = 1.- pow2(log10(EN))/ 200.;
+          EDIFF = 1.- pow2(log10(EN))/ 2000.;
           if( EN < ENKEEP * EDIFF || ENKEEP < EN )
             {
               ENKEEP = EN;

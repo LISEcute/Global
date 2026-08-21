@@ -1,5 +1,5 @@
-#define Global_version "Version 4.6.23"
-#define Global_date    "20-AUG-2026"
+#define Global_version "Version 4.8.0"
+#define Global_date    "21-AUG-2026"
 
 // 3.10 Michelle
 // 3.11 library
@@ -44,5 +44,35 @@
 // 4.6.21  07/01/23  moving to polynom
 // 4.6.22  11/06/23  bug correction with sign of a3 in FCORR
 
-// 4.6.23  08/20/26  Modificationof project file to avoid McAffee complain on MinGW,
+// 4.6.23  08/20/26  Modification of project file to avoid McAffee complain on MinGW,
 // and use local path for DESTDIR
+
+// 4.7.0   08/20/26  ETACHA-style batch mode from menu.
+// Batch file format: Ab Zb Qb Eb At Zt thickness density.
+// Results are saved in CSV format.
+
+// 4.7.1   08/20/26  Batch mode writes generated .global and .gloutput files
+// to LISEcute/results, forces option #0, and saves summary as *_resGLOBAL.csv.
+
+// 4.7.2   08/20/26  Batch completion message auto-closes only when /q or -q
+// command-line option is used.
+
+// 4.7.3   08/21/26  Batch CSV adds iQmax and dQ(calc-set), where
+// dQ(calc-set) = Qcalc - Qb.
+
+// 4.7.4   08/21/26  Batch CSV renames Result to Status, reports iQmax as
+// the charge state with maximum fraction, initializes result buffers, and
+// marks rows without physical Qcalc output as Status 0.
+
+// 4.7.5   08/21/26  Batch mode treats ETACHA Qb as charge state and converts
+// it to GLOBAL's Z-q input before each calculation.
+
+// 4.7.6   08/21/26  Batch CSV fraction output is limited to Fq0 through Fq9.
+
+// 4.7.8   08/21/26  Numerical refinements proposed by Masahiro Yoshimoto,
+// RIKEN BigRIPS team <masahiro.yoshimoto@riken.jp>:
+// EDIFF divisor changed from 200 to 2000 and integration coefficients changed
+// from {1,10,100,1000,10000,100000} to {1,1,10,100,1000,10000}.
+
+// 4.8.0   08/21/26
+// middle version has been incremented

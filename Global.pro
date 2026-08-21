@@ -21,9 +21,9 @@ DESTDIR = $$PWD/_install_MSVC
 }
 
 win32 {
-    VERSION = 4.6.23.1 # major.minor.patch.build
+    VERSION = 4.8.0.1 # major.minor.patch.build
 } else {
-    VERSION = 4.6.23   # major.minor.patch
+    VERSION = 4.8.0   # major.minor.patch
 }
 
 win32 {

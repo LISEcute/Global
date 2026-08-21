@@ -20,6 +20,7 @@
 #include <QLocale>
 #include <QRegularExpression>
 #include <QVector>
+#include <QTimer>
 
 
 #include "L_Init/Constant.h"
@@ -54,6 +55,7 @@ extern QString LISErootPATH;
 extern QString localPATH;
 extern const char *FileNameAbsent;
 extern QString FileArg;
+extern bool AutoCloseBatchMessage;
 
 class batchReactionSet
 {
@@ -85,7 +87,7 @@ bool batchReactionSet::initFromString(const QString& line)
 
     Ab      = parts[i++].toInt(&ok);     if(!ok || Ab      <= 0) return false;
     Zb      = parts[i++].toInt(&ok);     if(!ok || Zb      <= 0) return false;
-    Qb      = parts[i++].toInt(&ok);     if(!ok || Qb      <= 0) return false;
+    Qb      = parts[i++].toInt(&ok);     if(!ok || Qb      < 0 || Qb > Zb) return false;
     Eb      = parts[i++].toDouble(&ok);  if(!ok || Eb      <= 0.0) return false;
     At      = parts[i++].toInt(&ok);     if(!ok || At      <= 0) return false;
     Zt      = parts[i++].toInt(&ok);     if(!ok || Zt      <= 0) return false;
@@ -445,7 +447,9 @@ bool MainWindow::runBatchFile(const QString &fileName)
 
     QFileInfo batchInfo(fileName);
     QDir batchDir = batchInfo.absoluteDir();
-    QString resultPath = batchDir.filePath(batchInfo.completeBaseName() + "_results.bglobal");
+    QString resultPath = batchDir.filePath(batchInfo.completeBaseName() + "_resGLOBAL.csv");
+    QDir resultsDir(QFileInfo(localPATH).absoluteDir().filePath("results"));
+    if(!resultsDir.exists()) resultsDir.mkpath(".");
 
     QFile outFile(resultPath);
     if(!outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
@@ -458,10 +462,14 @@ bool MainWindow::runBatchFile(const QString &fileName)
     ts.setLocale(QLocale::C);
     ts.setRealNumberNotation(QTextStream::FixedNotation);
     ts.setRealNumberPrecision(6);
+    auto csvText = [](QString value) {
+        value.replace('"', "\"\"");
+        return "\"" + value + "\"";
+    };
 
     ts << "Ab,Zb,Qb,Eb,At,Zt,thick,density,"
-       << "Result,Qmean,dQ,EqThick,EnergyOut,";
-    for(int q = 0; q < IMAX; ++q) ts << "Fq" << q << ',';
+       << "Status,Qcalc,dQ,iQmax,dQ(calc-set),EqThick,EnergyOut,";
+    for(int q = 0; q <= 9; ++q) ts << "Fq" << q << ',';
     ts << "globalFile,outputFile\n";
 
     QString oldFFileName = FFileName;
@@ -474,6 +482,7 @@ bool MainWindow::runBatchFile(const QString &fileName)
     double oldDTARGET = gDTARGET;
     double oldEN0 = gEN0;
     int oldQIN = gQIN;
+    int oldOption = iOption;
     int oldLoop = iLoop;
 
     ui->label_ready->setText("<h3 style=\"color: #f00;\">Batch mode...</h3>");
@@ -486,11 +495,13 @@ bool MainWindow::runBatchFile(const QString &fileName)
 
         gAF = r.Ab;
         gZF = r.Zb;
-        gQIN = r.Qb;
+        gQIN = r.Zb - r.Qb;
         gEN0 = r.Eb;
         gAT = r.At;
         gZT = r.Zt;
         gDTARGET = r.thick;
+        iOption = opt_NormIni;
+        iLoop = 0;
 
         setPage(true);
 
@@ -504,8 +515,8 @@ bool MainWindow::runBatchFile(const QString &fileName)
                     r.Ab, beamEl.toUtf8().constData(), r.Qb, r.Eb,
                     r.At, targEl.toUtf8().constData(), r.thick);
 
-        QString globalFile = batchDir.filePath(rowBase + ".global");
-        QString outputFile = batchDir.filePath(rowBase + ".gloutput");
+        QString globalFile = resultsDir.filePath(rowBase + ".global");
+        QString outputFile = resultsDir.filePath(rowBase + ".gloutput");
 
         if(!saveGlobalFile(globalFile)) {
             QMessageBox::warning(this, tr("File error"),
@@ -522,18 +533,33 @@ bool MainWindow::runBatchFile(const QString &fileName)
         int batchResult = runGlobal(FNO.data(), false, tGlobal_version,
                                     gAF, gZF, gAT, gZT,
                                     gDTARGET, gEN0, gQIN,
-                                    I_WR, iOption, iCSoutput,
+                                    I_WR, opt_NormIni, iCSoutput,
                                     0, N_Steps, Qshow,
                                     DELZF, DELE,
                                     DELQ, DELZT, DELDT,
                                     Obmen);
 
+        double qCalc = Obmen[IMAX];
+        int csvStatus = batchResult;
+        if(csvStatus == 1 && qCalc <= 0.0) csvStatus = 0;
+
+        int iQmax = 0;
+        if(qCalc > 0.0) {
+            int electronIndexMax = 0;
+            for(int q = 1; q < IMAX; ++q)
+                if(Obmen[q] > Obmen[electronIndexMax]) electronIndexMax = q;
+            iQmax = r.Zb - electronIndexMax;
+        }
+
+        double dQcalcSet = qCalc - r.Qb;
+
         ts << r.Ab << ',' << r.Zb << ',' << r.Qb << ',' << r.Eb << ','
            << r.At << ',' << r.Zt << ',' << r.thick << ',' << r.density << ','
-           << batchResult << ',' << Obmen[IMAX] << ',' << Obmen[IMAX+1] << ','
+           << csvStatus << ',' << qCalc << ',' << Obmen[IMAX+1] << ','
+           << iQmax << ',' << dQcalcSet << ','
            << Obmen[IMAX+2] << ',' << Obmen[IMAX+3] << ',';
-        for(int q = 0; q < IMAX; ++q) ts << Obmen[q] << ',';
-        ts << globalFile << ',' << outputFile << '\n';
+        for(int q = 0; q <= 9; ++q) ts << Obmen[q] << ',';
+        ts << csvText(globalFile) << ',' << csvText(outputFile) << '\n';
 
         completedSets++;
         ui->label_ready->setText(tr("<h3 style=\"color: #f00;\">Batch %1/%2...</h3>")
@@ -552,17 +578,30 @@ bool MainWindow::runBatchFile(const QString &fileName)
     gDTARGET = oldDTARGET;
     gEN0 = oldEN0;
     gQIN = oldQIN;
+    iOption = oldOption;
     iLoop = oldLoop;
     modified = oldModified;
     setPage(true);
     ui->label_ready->setText("<h3 style=\"color: #00f;\">Ready</h3>");
 
-    QMessageBox::information(this, tr("Batch completed"),
-                             tr("Completed %1 calculations from %2 lines (%3 comments/empty).\nResults saved to:\n%4")
-                             .arg(completedSets)
-                             .arg(lineCount)
-                             .arg(commentCount)
-                             .arg(QDir::toNativeSeparators(resultPath)));
+    QMessageBox *messageBox = new QMessageBox(
+                QMessageBox::Information,
+                tr("Batch completed"),
+                tr("Completed %1 calculations from %2 lines (%3 comments/empty).\nResults saved to:\n%4")
+                    .arg(completedSets)
+                    .arg(lineCount)
+                    .arg(commentCount)
+                    .arg(QDir::toNativeSeparators(resultPath)),
+                QMessageBox::Ok,
+                this);
+    messageBox->setAttribute(Qt::WA_DeleteOnClose);
+
+    if(AutoCloseBatchMessage) {
+        QTimer::singleShot(5000, messageBox, &QMessageBox::accept);
+        messageBox->open();
+    } else {
+        messageBox->exec();
+    }
 
     QFile resFile(resultPath);
     if(resFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -850,6 +889,7 @@ if(e->key()==Qt::Key_Enter || e->key()==Qt::Key_Return){
                double *ObmenOut)
  {
      double Obmen[IMAX+4];    //Qmean, dQ, EquilibThick, Eout
+     for(int i=0; i<IMAX+4; i++) Obmen[i] = 0.;
      int result = RunGlobalLocal(Obmen,filename, option_read_data_file,
                              0,(char*)Globalversion,
                              gAF, gZF, gAT, gZT,

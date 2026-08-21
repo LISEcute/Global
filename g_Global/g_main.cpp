@@ -14,6 +14,7 @@ extern QString MyDocCompPATH;
 extern const char *LISEini;
 
 QString FileArg="";
+bool AutoCloseBatchMessage=false;
 int fontsizeGlobal=9;
 int useHighDpiScaling=1;
 
@@ -38,7 +39,17 @@ int main(int argc, char *argv[])
         LISErootPATH = dir.currentPath();
         }
 
-    if(argc>1) FileArg = QDir::fromNativeSeparators(argv[1]);
+    for(int i=1; i<argc; i++) {
+        QString arg = QDir::fromNativeSeparators(argv[i]);
+        if(arg.compare("-q", Qt::CaseInsensitive) == 0 ||
+           arg.compare("/q", Qt::CaseInsensitive) == 0) {
+            AutoCloseBatchMessage = true;
+            continue;
+        }
+
+        if(FileArg.isEmpty())
+            FileArg = arg;
+    }
 
     //---------------------------------------------------------------------------------- paths + read font size start
     getInitialDir();
