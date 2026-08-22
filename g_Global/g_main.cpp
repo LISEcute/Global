@@ -15,6 +15,7 @@ extern const char *LISEini;
 
 QString FileArg="";
 bool AutoCloseBatchMessage=false;
+bool AutoRunBatchFile=false;
 int fontsizeGlobal=9;
 int useHighDpiScaling=1;
 
@@ -44,6 +45,12 @@ int main(int argc, char *argv[])
         if(arg.compare("-q", Qt::CaseInsensitive) == 0 ||
            arg.compare("/q", Qt::CaseInsensitive) == 0) {
             AutoCloseBatchMessage = true;
+            continue;
+        }
+
+        if(arg.compare("-r", Qt::CaseInsensitive) == 0 ||
+           arg.compare("/r", Qt::CaseInsensitive) == 0) {
+            AutoRunBatchFile = true;
             continue;
         }
 

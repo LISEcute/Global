@@ -1,4 +1,4 @@
-#define Global_version "Version 4.8.0"
+#define Global_version "Version 4.8.1"
 #define Global_date    "21-AUG-2026"
 
 // 3.10 Michelle
@@ -69,10 +69,10 @@
 
 // 4.7.6   08/21/26  Batch CSV fraction output is limited to Fq0 through Fq9.
 
-// 4.7.8   08/21/26  Numerical refinements proposed by Masahiro Yoshimoto,
+// 4.8.0   08/21/26  Numerical refinements proposed by Masahiro Yoshimoto,
 // RIKEN BigRIPS team <masahiro.yoshimoto@riken.jp>:
 // EDIFF divisor changed from 200 to 2000 and integration coefficients changed
 // from {1,10,100,1000,10000,100000} to {1,1,10,100,1000,10000}.
 
-// 4.8.0   08/21/26
-// middle version has been incremented
+// 4.8.1   08/21/26  ETACHA-compatible command-line batch start:
+// Global.exe batch-file -r or /r loads the batch file and immediately runs it.

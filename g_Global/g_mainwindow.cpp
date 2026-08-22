@@ -56,6 +56,7 @@ extern QString localPATH;
 extern const char *FileNameAbsent;
 extern QString FileArg;
 extern bool AutoCloseBatchMessage;
+extern bool AutoRunBatchFile;
 
 class batchReactionSet
 {
@@ -157,9 +158,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
     FFileName  = FileArg.size()>0? FileArg : localPATH + FileNameAbsent;
     setFileName(FFileName);
-    if(FileArg.size()>0) readFile(FFileName);
+    if(FileArg.size()>0 && !AutoRunBatchFile) readFile(FFileName);
 
     setPage();
+    if(FileArg.size()>0 && AutoRunBatchFile)
+        QTimer::singleShot(0, this, [this]() { runBatchFile(FFileName); });
 }
 //WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 MainWindow::~MainWindow(){    delete ui;}
